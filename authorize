@@ -1,0 +1,71 @@
+#!/usr/bin/php -q
+<?php
+set_time_limit(35);
+
+require('/opt/own/config');
+
+function send_pushover_message($apikey,$userid,$devicename,$title,$message)
+{
+ $string='wget -q -O - --post-data "token='.$apikey.'&device='.$devicename.'&title='.$title.'&message='.$message.'&user='.$userid.'" https://api.pushover.net/1/messages.json > /dev/null';
+ exec($string);
+}
+
+
+$myrand=rand();
+require 'Predis/Autoloader.php';
+Predis\Autoloader::register();
+$client = new Predis\Client();
+
+
+$initialtime=time();
+$timenow=time();
+$timeout=30;
+$difference=$timenow-$initialtime;
+$authorized=false;
+$user=explode('=',strtolower(exec('env |grep USER=')))[1];
+$result=trim(exec('env | grep SSH_CONNECTION'));
+send_pushover_message($pushover_apikey,$pushover_userid,$pushover_device,'AU','<a href=\"'.$approval_url.$user.'/'.$myrand.'\">Approve</a> <br>'.$result.'&html=1&priority=-2');
+$progress='|';
+while ($difference <=$timeout AND $authorized==false)
+{
+
+
+
+ if ($client->get($user.':authorized')==$myrand)
+ {
+  $authorized=true;
+ }
+echo "\r".$progress;
+if ($progress=='|')
+{
+$progress='/';
+}else if ($progress=='-')
+{
+$progress='|';
+}
+ else if ($progress=='/')
+{
+$progress='-';
+}
+
+
+sleep(1);
+
+$difference=time()-$initialtime;
+
+
+if ($difference >$timeout)
+{
+echo "\rTerminated";
+exit(2);
+
+}
+
+
+
+}
+
+if ($authorized==true){
+echo "Authorized\n";
+}
+?>
